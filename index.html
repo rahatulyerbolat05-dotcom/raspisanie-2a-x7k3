@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23208740'/%3E%3Ctext x='16' y='23.5' font-size='20' font-weight='700' text-anchor='middle' fill='white' font-family='sans-serif'%3E2%3C/text%3E%3C/svg%3E">
 <meta name="theme-color" content="#F1F7F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0B120F" media="(prefers-color-scheme: dark)">
 <title>Расписание</title>
@@ -259,6 +261,7 @@
   .daytabs button.wk:not(:disabled):hover{color:var(--accent-ink); border-color:var(--accent-ink);}
   .daytabs button.wk:not(:disabled):active{transform:scale(0.9);}
   .daytabs button.wk:disabled{opacity:0.3; cursor:default;}
+  .daytabs button:disabled:not(.wk):not(.active){opacity:0.35; cursor:default;}
 
   /* перемена между парами */
   /* тихая строка: без фона и рамки, мелкий приглушённый текст */
@@ -329,7 +332,9 @@
     transition:grid-template-rows var(--t-slow) var(--ease), opacity var(--t-fast) var(--ease);
   }
   .calBody.open{ grid-template-rows:1fr; opacity:1; transition:grid-template-rows var(--t-slow) var(--ease), opacity var(--t-med) var(--ease) 60ms; }
-  .calBodyInner{ overflow:hidden; min-height:0; padding:4px 14px 16px; border-top:1px solid var(--sep); }
+  /* в свёрнутом виде отступов нет (раньше скрытый календарь держал ~20px пустоты под строкой «Другой день») */
+  .calBodyInner{ overflow:hidden; min-height:0; padding:0 14px; border-top:1px solid var(--sep); transition:padding var(--t-slow) var(--ease); }
+  .calBody.open .calBodyInner{ padding:4px 14px 16px; }
   .calNav{display:flex; align-items:center; justify-content:space-between; padding:12px 2px 10px;}
   .calNav button{
     appearance:none; border:none; background:var(--chip); color:var(--text);
@@ -355,6 +360,20 @@
   .calToday{margin-top:10px; width:100%; appearance:none; border:1px solid var(--sep); background:transparent; color:var(--accent-ink); font-family:inherit; font-size:var(--fs-c); font-weight:600; padding:9px; border-radius:11px; cursor:pointer;}
   .lessonTag{display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent-ink); background:rgba(var(--accent-rgb),0.14); border-radius:6px; padding:2px 6px; margin-left:6px; white-space:nowrap; vertical-align:middle;}
   .meta .lessonTag{margin-left:0;}
+  /* напоминание: переключатель в стиле iOS + кнопка календаря */
+  .remBlock{padding:14px 16px 16px;}
+  .remRow{display:flex; align-items:center; justify-content:space-between; gap:14px;}
+  .remRow .lbl{display:block; font-size:var(--fs-b); font-weight:var(--fw-b); letter-spacing:var(--ls-b);}
+  .remRow .sub{display:block; font-size:var(--fs-c); font-weight:var(--fw-c); letter-spacing:var(--ls-c); color:var(--text2); margin-top:3px; line-height:1.45;}
+  .switch{flex:none; position:relative; width:51px; height:31px; border-radius:100px; border:none; padding:0; cursor:pointer;
+    background:rgba(120,130,140,0.34); transition:background-color var(--t-med) var(--ease);}
+  .switch i{position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff;
+    box-shadow:0 2px 5px rgba(0,0,0,0.25); transition:transform var(--t-med) var(--ease-out);}
+  .switch[aria-checked="true"]{background:var(--accent-fill);}
+  .switch[aria-checked="true"] i{transform:translateX(20px);}
+  .switch:disabled{opacity:0.4; cursor:default;}
+  .switch:focus-visible, .calToday:focus-visible{outline:2px solid var(--accent-ink); outline-offset:2px;}
+  .remBody{margin-top:12px; padding-top:2px; border-top:1px solid var(--sep);}
   .hero .subject.long{font-size:var(--fs-l); font-weight:var(--fw-l); letter-spacing:var(--ls-l); line-height:1.15;}
   .demo{padding:10px 14px; border-radius:14px; background:var(--warn-bg); color:var(--warn); font-size:var(--fs-c); font-weight:600; letter-spacing:var(--ls-c); line-height:1.4;}
 </style>
@@ -422,7 +441,7 @@
   </div>
 
   <div class="calBlock">
-    <button class="calToggle" id="calToggle">
+    <button type="button" class="calToggle" id="calToggle" aria-expanded="false" aria-controls="calBody">
       <span>
         <span class="lbl">Другой день</span>
         <span class="sub" id="calToggleSub">выбрать по календарю</span>
@@ -444,13 +463,27 @@
     </div>
   </div>
 
+  <div class="calBlock remBlock" id="remBlock">
+    <div class="remRow">
+      <div>
+        <span class="lbl" id="remLbl">Напоминание за час до уроков</span>
+        <span class="sub" id="remSub"></span>
+      </div>
+      <button type="button" class="switch" id="remSwitch" role="switch" aria-checked="false" aria-labelledby="remLbl"><i></i></button>
+    </div>
+    <div class="remBody">
+      <button type="button" class="calToday" id="icsBtn">Добавить напоминания в календарь телефона</button>
+      <div class="calHint" id="icsHint"></div>
+    </div>
+  </div>
+
   <div class="legend" id="legend"></div>
 
   <div class="foot" id="foot"></div>
 </div>
 
 <!-- ?v= — меняй при каждом обновлении schedule-data.js, чтобы телефоны не брали старую копию из кэша -->
-<script src="schedule-data.js?v=1"></script>
+<script src="schedule-data.js?v=2"></script>
 <script>
 (function(){
   "use strict";
@@ -484,13 +517,17 @@
   function tagHTML(c){ return c && c.tag ? '<span class="lessonTag">'+c.tag+'</span>' : ""; }
   function fmtDur(m){ var h = Math.floor(m/60), r = m%60; return h ? h+' ч'+(r ? ' '+r+' мин' : '') : m+' мин'; }
   function annFor(d){ return (typeof ANNOUNCEMENTS !== "undefined" && ANNOUNCEMENTS[dateKey(d)]) || null; }
-  // Замена дня: разовое событие (OVERRIDES) или период без пар (PERIODS: практика, сессия, каникулы)
+  // Замена дня: разовое событие (OVERRIDES), период без уроков (PERIODS: каникулы и т.п.)
+  // или день вне учебного года (раньше летом приложение показывало «Сейчас идёт: Математика»).
   function overrideFor(d){
     var key = dateKey(d);
     if (OVERRIDES[key]) return OVERRIDES[key];
     if (typeof PERIODS !== "undefined"){
       for (var i=0;i<PERIODS.length;i++){ if (key >= PERIODS[i].from && key <= PERIODS[i].to) return PERIODS[i]; }
     }
+    var day = atMidnight(d);
+    if (day < CALENDAR_MIN) return {title:"Учебный год ещё не начался", note:"Уроков нет.", from:true};
+    if (day > CALENDAR_MAX) return {title:"Учебный год закончился", note:"Уроков нет.", from:true};
     return null;
   }
   function overrideText(o){
@@ -498,8 +535,9 @@
   }
   // Ближайший учебный день после d (для подсказки «следующие пары — …»)
   function nextStudyDay(d){
-    for (var i=1; i<=90; i++){
+    for (var i=1; i<=400; i++){   // 400, а не 90: от конца мая до 1 сентября больше 90 дней
       var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()+i);
+      if (x > CALENDAR_MAX) break;
       var ix = (x.getDay()+6)%7;
       if (ix >= DAYS || overrideFor(x)) continue;
       if (dayInfo(ix, weekType(x)).length) return x;
@@ -532,6 +570,12 @@
   var CAL = (typeof CALENDAR !== "undefined") ? CALENDAR : {from:"2026-09-01", to:"2027-05-31"};
   var CALENDAR_MIN = parseKey(CAL.from);
   var CALENDAR_MAX = parseKey(CAL.to);
+  // Месяц в календаре не выходит за учебный год (раньше летом открывался «мёртвый» июнь с неработающими стрелками)
+  function clampMonth(m){
+    var lo = new Date(CALENDAR_MIN.getFullYear(), CALENDAR_MIN.getMonth(), 1);
+    var hi = new Date(CALENDAR_MAX.getFullYear(), CALENDAR_MAX.getMonth(), 1);
+    return m < lo ? lo : (m > hi ? hi : m);
+  }
 
   var state = { weekOverride:"auto", selectedDate:null, calMonth:null, calOpen:false, followToday:true };
   function effectiveWeekType(date){ return state.weekOverride === "auto" ? weekType(date) : state.weekOverride; }
@@ -601,6 +645,7 @@
           var d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate()+i);
           var b = document.createElement("button");
           b.innerHTML = DAY_SHORT[i] + '<span class="n">' + d.getDate() + '</span>';
+          if (!inCalendarRange(d)) b.disabled = true;   // дни вне учебного года не открываем
           b.addEventListener("click", function(){
             state.selectedDate = d;
             state.followToday = false;
@@ -616,6 +661,8 @@
     wrap._days.forEach(function(entry){
       entry.btn.classList.toggle("today", sameDate(entry.date, now));
       entry.btn.classList.toggle("active", sameDate(entry.date, selDate));
+      entry.btn.setAttribute("aria-pressed", sameDate(entry.date, selDate) ? "true" : "false");
+      if (sameDate(entry.date, now)) entry.btn.setAttribute("aria-current", "date"); else entry.btn.removeAttribute("aria-current");
     });
     wrap._prev.disabled = !weekTarget(selDate, -1);
     wrap._next.disabled = !weekTarget(selDate, 1);
@@ -679,7 +726,9 @@
 
     if (res.kind === "override"){
       v.event = true;
-      v.label = "Сегодня"; v.status = "Событие"; v.statusClass = "status soon";
+      v.label = "Сегодня";
+      // период без уроков (каникулы, вне учебного года) — спокойный серый «Без уроков»; разовое событие — оранжевое
+      v.status = res.data.from ? "Без уроков" : "Событие"; v.statusClass = res.data.from ? "status off" : "status soon";
       v.subject = res.data.title;
       v.metaHTML = (res.data.time ? '<span class="metaitem">'+res.data.time+'</span>' : '') + (res.data.place ? '<span class="room-tag">'+res.data.place+'</span>' : '');
       v.countdownHTML = [res.data.note || "", res.data.from ? nextStudyText(now) : ""].filter(Boolean).join(" ");
@@ -922,6 +971,7 @@
     var n = new Date();
     renderClock(n);
     renderHero(n);
+    checkReminder(n);
   }, 1000);
 
   var MONTHS_RU = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
@@ -955,8 +1005,8 @@
         if (wd >= DAYS) btn.classList.add("weekend");
         if (sameDate(d, now)) btn.classList.add("today");
         if (sameDate(d, state.selectedDate)) btn.classList.add("selected");
-        var hasEvent = !!overrideFor(d) || !!annFor(d);
         var disabled = !inCalendarRange(d);
+        var hasEvent = !disabled && (!!overrideFor(d) || !!annFor(d));
         if (disabled) btn.classList.add("disabled");
         btn.innerHTML = String(day) + (hasEvent ? '<span class="evd"></span>' : '');
         if (!disabled){
@@ -1017,7 +1067,7 @@
       var wdNow = (now.getDay()+6)%7;
       if (wdNow >= DAYS) state.selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (7 - wdNow));
     }
-    if (state.calMonth === null) state.calMonth = new Date(state.selectedDate.getFullYear(), state.selectedDate.getMonth(), 1);
+    if (state.calMonth === null) state.calMonth = clampMonth(new Date(state.selectedDate.getFullYear(), state.selectedDate.getMonth(), 1));
     var selDate = state.selectedDate;
 
     renderClock(now);
@@ -1032,6 +1082,7 @@
     toggleSub.textContent = sameDate(selDate, now) ? "выбрать по календарю" :
       "показан " + selDate.toLocaleDateString("ru-RU",{day:"numeric",month:"long"}) + " — открыть, чтобы сменить";
     if (state.calOpen) renderCalendar(now);
+    document.getElementById("calToggle").setAttribute("aria-expanded", state.calOpen ? "true" : "false");
   }
 
   document.getElementById("weekSeg").addEventListener("click", function(e){
@@ -1152,8 +1203,9 @@
     state.calOpen = !state.calOpen;
     calBody.classList.toggle("open", state.calOpen);
     calToggleBtn.classList.toggle("open", state.calOpen);
+    calToggleBtn.setAttribute("aria-expanded", state.calOpen ? "true" : "false");
     if (state.calOpen){
-      state.calMonth = new Date(state.selectedDate.getFullYear(), state.selectedDate.getMonth(), 1);
+      state.calMonth = clampMonth(new Date(state.selectedDate.getFullYear(), state.selectedDate.getMonth(), 1));
       renderCalendar(new Date());
     }
   });
@@ -1193,6 +1245,150 @@
     renderAll();
   });
 
+  // ============ Напоминание за REMIND минут до первого урока дня ============
+  // Два способа. 1) Уведомление браузера — только пока приложение открыто: статический сайт без сервера
+  // не может «разбудить» закрытую страницу. 2) Файл календаря .ics с сигналом (VALARM): после импорта
+  // телефон напоминает сам, даже когда приложение закрыто.
+  var REMIND = (typeof REMIND_BEFORE_MIN !== "undefined") ? +REMIND_BEFORE_MIN : 60;
+  function remindWhen(){ return REMIND === 60 ? "за час" : (REMIND % 60 === 0 ? "за " + (REMIND/60) + " ч" : "за " + REMIND + " мин"); }
+
+  // уроки учебного дня d вместе со звонками: [{c, p}]; null — в этот день уроков нет (выходной, каникулы, событие)
+  function dayPlan(d){
+    var idx = (d.getDay()+6)%7;
+    if (idx >= DAYS || overrideFor(d)) return null;
+    var grid = gridFor(idx), out = [];
+    dayInfo(idx, weekType(d)).forEach(function(c){
+      var p = grid.filter(function(g){ return g.n === c.pair; })[0];
+      if (p) out.push({c:c, p:p});
+    });
+    out.sort(function(a,b){ return toMinutes(a.p.start) - toMinutes(b.p.start); });
+    return out.length ? out : null;
+  }
+
+  var mem = {};   // запасное хранилище, если localStorage недоступен (приватный режим)
+  function lsGet(k){ try { var v = localStorage.getItem(k); if (v !== null) return v; } catch(e){} return mem[k] || ""; }
+  function lsSet(k, v){ mem[k] = v; try { localStorage.setItem(k, v); } catch(e){} }
+  var REM_ON = "scheduleRemind", REM_SENT = "scheduleRemindSent";
+  function notifSupported(){ return typeof Notification !== "undefined"; }
+  function remindOn(){ return lsGet(REM_ON) === "1" && notifSupported() && Notification.permission === "granted"; }
+
+  function registerSW(){
+    if (!("serviceWorker" in navigator)) return;
+    try { navigator.serviceWorker.register("sw.js").catch(function(){}); } catch(e){}
+  }
+  // На телефонах уведомления показывает только service worker (new Notification там запрещён)
+  function showNotice(title, body, tag){
+    var opts = { body: body, tag: tag };
+    function direct(){ try { new Notification(title, opts); } catch(e){} }
+    if (!("serviceWorker" in navigator)) return direct();
+    navigator.serviceWorker.getRegistration().then(function(reg){
+      if (!reg) return direct();
+      return navigator.serviceWorker.ready.then(function(r){ return r.showNotification(title, opts); });
+    }).catch(direct);
+  }
+  function checkReminder(now){
+    if (!remindOn()) return;
+    var key = dateKey(now);
+    if (lsGet(REM_SENT) === key) return;                 // сегодня уже напоминали
+    var plan = dayPlan(atMidnight(now));
+    if (!plan) return;
+    var startSec = toMinutes(plan[0].p.start) * 60;
+    var nowSec = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+    if (nowSec < startSec - REMIND*60 || nowSec >= startSec) return;   // окно: от «за N минут» до начала первого урока
+    lsSet(REM_SENT, key);
+    var first = plan[0], last = plan[plan.length-1], room = roomFor(first.c, now);
+    showNotice("Уроки через " + fmtDur(Math.max(1, Math.round((startSec - nowSec) / 60))),
+      first.p.start + " · " + first.c.name + (room ? " · " + room : "") + "\nУроков сегодня: " + plan.length + ", до " + last.p.end,
+      "lessons-" + key);
+  }
+  function renderRemindUI(){
+    var sw = document.getElementById("remSwitch"), sub = document.getElementById("remSub");
+    document.getElementById("remLbl").textContent = "Напоминание " + remindWhen() + " до уроков";
+    var on = remindOn();
+    sw.setAttribute("aria-checked", on ? "true" : "false");
+    sw.disabled = false;
+    if (!notifSupported()){ sw.disabled = true; sub.textContent = "Этот браузер не умеет присылать уведомления. Используй календарь телефона ниже."; }
+    else if (Notification.permission === "denied"){ sw.disabled = true; sub.textContent = "Уведомления запрещены в настройках браузера. Календарь ниже работает независимо от них."; }
+    else if (on) sub.textContent = "Включено. Сработает, только пока приложение открыто. Чтобы напоминание приходило всегда, добавь уроки в календарь ниже.";
+    else sub.textContent = "Уведомление браузера, пока приложение открыто. Надёжнее календарь телефона ниже: он напомнит и при закрытом приложении.";
+  }
+  document.getElementById("remSwitch").addEventListener("click", function(){
+    if (remindOn()){ lsSet(REM_ON, ""); renderRemindUI(); return; }
+    if (!notifSupported()) return;
+    var done = false;
+    function after(p){
+      if (done) return; done = true;
+      if (p === "granted"){
+        lsSet(REM_ON, "1");
+        registerSW();
+        showNotice("Напоминания включены", "Напомню " + remindWhen() + " до первого урока.", "remind-on");
+        checkReminder(new Date());
+      }
+      renderRemindUI();
+    }
+    try { var r = Notification.requestPermission(after); if (r && r.then) r.then(after); } catch(e){ after("denied"); }
+  });
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) checkReminder(new Date()); });
+
+  // --- календарь (.ics): по событию на каждый учебный день, сигнал за REMIND минут до первого урока ---
+  function icsEsc(s){ return String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n"); }
+  function icsFold(line){   // строки ≤ 75 октетов, UTF-8-символы не режем
+    var enc = new TextEncoder(), parts = [], cur = "", bytes = 0;
+    Array.from(line).forEach(function(ch){
+      var n = enc.encode(ch).length;
+      if (bytes + n > 73){ parts.push(cur); cur = " "; bytes = 1; }
+      cur += ch; bytes += n;
+    });
+    parts.push(cur);
+    return parts.join("\r\n");
+  }
+  function icsLocal(d, hhmm){ return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + "T" + hhmm.replace(":", "") + "00"; }   // «плавающее» время: 13:25 по часам телефона
+  function icsUtc(d){ return d.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"); }
+  function buildICS(){
+    var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//raspisanie//RU", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+             "X-WR-CALNAME:" + icsEsc((CFG.title || "Расписание") + " — уроки")];
+    var stamp = icsUtc(new Date()), n = 0;
+    var d = new Date(Math.max(atMidnight(new Date()), CALENDAR_MIN));   // прошлое в календарь не кладём
+    for (; d <= CALENDAR_MAX; d.setDate(d.getDate() + 1)){
+      var plan = dayPlan(d); if (!plan) continue;
+      var first = plan[0], last = plan[plan.length-1], a = annFor(d);
+      var desc = plan.map(function(x){ var r = roomFor(x.c, d); return x.p.start + "–" + x.p.end + " " + x.c.name + (r ? " (" + r + ")" : ""); });
+      if (a) desc.unshift("Объявление: " + a.title + (a.note ? " — " + a.note : ""));
+      L.push("BEGIN:VEVENT", "UID:" + dateKey(d) + "-lessons@raspisanie", "DTSTAMP:" + stamp,
+        "DTSTART:" + icsLocal(d, first.p.start), "DTEND:" + icsLocal(d, last.p.end),
+        "SUMMARY:" + icsEsc((CFG.title ? CFG.title + ": " : "") + "уроки " + first.p.start + "–" + last.p.end),
+        "DESCRIPTION:" + icsEsc(desc.join("\n")),
+        "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + icsEsc("Уроки начнутся в " + first.p.start + ": " + first.c.name),
+        "TRIGGER:-PT" + REMIND + "M", "END:VALARM", "END:VEVENT");
+      n++;
+    }
+    L.push("END:VCALENDAR");
+    return { text: L.map(icsFold).join("\r\n") + "\r\n", count: n };
+  }
+  document.getElementById("icsBtn").addEventListener("click", function(){
+    var hint = document.getElementById("icsHint"), r = buildICS();
+    if (!r.count){ hint.textContent = "Впереди нет учебных дней, которые можно добавить."; return; }
+    var url = URL.createObjectURL(new Blob([r.text], {type:"text/calendar;charset=utf-8"}));
+    var a = document.createElement("a"); a.href = url; a.download = "raspisanie.ics";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+    hint.textContent = "Файл raspisanie.ics готов, учебных дней в нём: " + r.count + ", сигнал " + remindWhen() + " до первого урока. Открой его на телефоне — календарь предложит добавить события. Если расписание изменится, скачай файл снова: у событий постоянные идентификаторы, поэтому календарь обычно обновляет их, а не дублирует.";
+  });
+
+  // Подсказка автору расписания: ловит опечатки в schedule-data.js (в консоли браузера)
+  function validateData(){
+    try {
+      Object.keys(SCHEDULE).forEach(function(k){
+        var seen = {};
+        (SCHEDULE[k].pairs || []).forEach(function(p){
+          if (seen[p.pair]) console.warn("schedule-data: день " + k + ": урок №" + p.pair + " записан дважды");
+          seen[p.pair] = true;
+          if (!gridFor(+k).some(function(g){ return g.n === p.pair; })) console.warn("schedule-data: день " + k + ": для урока №" + p.pair + " нет звонка в BELLS");
+        });
+      });
+    } catch(e){}
+  }
+
   (function initChrome(){
     var t = CFG.title || "Расписание";
     document.title = t + " — расписание";
@@ -1203,6 +1399,9 @@
     foot.innerHTML = CFG.footer || ""; foot.hidden = !CFG.footer;
     if (typeof DEMO !== "undefined" && DEMO) document.getElementById("demoBanner").hidden = false;
     if (!ALT) document.getElementById("weekSeg").hidden = true;
+    validateData();
+    renderRemindUI();
+    if (remindOn()) registerSW();
   })();
 
   renderAll();
